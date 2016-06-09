@@ -10,7 +10,7 @@ local database = 6
 local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
 -- block time
-local block_time = 600 -- 10 minutes, 600 seconds 
+local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "403"
 -- Client
 local client_remoteip = ngx.var.remote_addr
