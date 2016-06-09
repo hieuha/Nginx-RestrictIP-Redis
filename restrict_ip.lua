@@ -14,29 +14,29 @@ local block_time = 600000 -- 10 minutes, 600000 milliseconds
 local rule_block = "403"
 -- Client
 local client_remoteip = ngx.var.remote_addr
+
 -- Functions
-
 local function isStillBlocking(time_start)
-	local time_now = os.time()
-	local time_diff = math.abs(time_start - time_now)
+    local time_now = os.time()
+    local time_diff = math.abs(time_start - time_now)
 
-	if time_diff >= block_time then
-		return false
-	end
-	return true
+    if time_diff >= block_time then
+        return false
+    end
+    return true
 end
 
 local function ruleBlock(rule)
-	if rule == "403" then
-		return ngx.exit(ngx.HTTP_FORBIDDEN)
-	elseif rule == "444" then
-		return ngx.exit(ngx.HTTP_CLOSE)
-	elseif rule == "iptables" then
-		-- set rule for block Network layer
-		return
-	else
-		return ngx.exit(ngx.HTTP_FORBIDDEN)
-	end
+    if rule == "403" then
+        return ngx.exit(ngx.HTTP_FORBIDDEN)
+    elseif rule == "444" then
+        return ngx.exit(ngx.HTTP_CLOSE)
+    elseif rule == "iptables" then
+        -- set rule for block Network layer
+        return
+    else
+        return ngx.exit(ngx.HTTP_FORBIDDEN)
+    end
 end
 
 -- Init Redis Connection
@@ -45,36 +45,37 @@ local redis = resty:new()
 redis:set_timeout(redis_timeout)
 local isConnected, err = redis:connect(redis_server, redis_port)
 if not isConnected then
-	ngx.log(ngx.ERR, appname..": could not connect to redis @"..redis_port..": "..err)
-	return
+    ngx.log(ngx.ERR, appname..": could not connect to redis @"..redis_port..": "..err)
+    return
 else
-	if redis_secret ~= nil then
-		local isConnected, err = redis:auth(redis_secret)
-		if not isConnected then
-			ngx.log(ngx.ERR, appname..": failed to authenticate"..redis_port..": "..err)
-			return
-		end
-	end
-	redis:select(database)
+    if redis_secret ~= nil then
+        local isConnected, err = redis:auth(redis_secret)
+        if not isConnected then
+            ngx.log(ngx.ERR, appname..": failed to authenticate"..redis_port..": "..err)
+            return
+        end
+    end
+    redis:select(database)
 end
+
 -- Check Whitelist
 -- If the remote IP client is existed in Whitelist, the firewall does not block anything
 local is_white_ip_eixsted, err = redis:sismember(redis_whitelist_key, client_remoteip)
 if is_white_ip_eixsted == 1 then
-	return
+    return
 end
 -- Check Blacklist
 -- If the remote IP client is exsited in Blakclist, the firewall does block immediately
 local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
 if time_start ~= ngx.null then
-	if isStillBlocking(time_start) then
-		-- Blocking
-		return ruleBlock(rule_block)
-	else
-		-- Remove Bad IP
-		ngx.log(ngx.ERR, appname..": Remove Bad IP "..client_remoteip)
-		local is_deleted, err = redis:zrem(redis_blacklist_key, client_remoteip)
-	end
+    if isStillBlocking(time_start) then
+        -- Blocking
+        return ruleBlock(rule_block)
+    else
+        -- Remove Bad IP
+        ngx.log(ngx.ERR, appname..": Remove Bad IP "..client_remoteip)
+        local is_deleted, err = redis:zrem(redis_blacklist_key, client_remoteip)
+    end
 end
 
 -- Default allow all request
