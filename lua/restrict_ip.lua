@@ -11,7 +11,7 @@ local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
-local rule_block = "403"
+local rule_block = "444"
 -- Client
 local client_remoteip = ngx.var.remote_addr
 
@@ -26,6 +26,7 @@ local function isStillBlocking(time_start)
 end
 
 local function ruleBlock(rule)
+    ngx.log(ngx.ERR, appname..": block the IP "..client_remoteip)
     if rule == "403" then
         return ngx.exit(ngx.HTTP_FORBIDDEN)
     elseif rule == "444" then
