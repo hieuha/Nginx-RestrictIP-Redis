@@ -19,7 +19,6 @@ local client_remoteip = ngx.var.remote_addr
 local function isStillBlocking(time_start)
     local time_now = os.time()
     local time_diff = math.abs(time_start - time_now)
-
     if time_diff >= block_time then
         return false
     end
@@ -73,7 +72,7 @@ if time_start ~= ngx.null then
         return ruleBlock(rule_block)
     else
         -- Remove Bad IP
-        ngx.log(ngx.ERR, appname..": Remove Bad IP "..client_remoteip)
+        ngx.log(ngx.ERR, appname..": removed the bad IP "..client_remoteip)
         local is_deleted, err = redis:zrem(redis_blacklist_key, client_remoteip)
     end
 end
