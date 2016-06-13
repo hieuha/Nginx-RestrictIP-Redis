@@ -6,9 +6,18 @@ local redis_secret = nil
 local appname = "RESTRICT-IP"
 local database = 6
 
+-- Notification
+local enable_sms = true
+local enable_email = true
+local daywork = {2, 3, 4, 5, 6, 7}
+local daytime = {}
+
 -- redis IP keys
 local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
+local redis_score_badip = "IP_BLACKLIST_SCORE"
+local redis_sendsms = "IP_IS_SEND_SMS"
+
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "444"
@@ -31,6 +40,8 @@ local function ruleBlock(rule)
         return ngx.exit(ngx.HTTP_FORBIDDEN)
     elseif rule == "444" then
         return ngx.exit(ngx.HTTP_CLOSE)
+    else if rule == "404" then
+        return ngx.exit(ngx.HTTP_NOT_FOUND)
     elseif rule == "iptables" then
         -- set rule for block Network layer
         return
@@ -70,7 +81,8 @@ local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
 if time_start ~= ngx.null then
     if isStillBlocking(time_start) then
         -- Blocking
-        return ruleBlock(rule_block)
+        -- return ruleBlock(rule_block)
+        return 
     else
         -- Remove Bad IP
         ngx.log(ngx.ERR, appname..": removed the bad IP "..client_remoteip)
