@@ -11,18 +11,30 @@ local enable_sms = true
 local enable_email = true
 local daywork = {2, 3, 4, 5, 6, 7}
 local daytime = {}
+local level_sms = 100
+local level_block = 200
 
 -- redis IP keys
 local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
-local redis_score_badip = "IP_BLACKLIST_SCORE"
+local redis_score_badip = "IP_SCORE"
 local redis_sendsms = "IP_IS_SEND_SMS"
+
+-- API SMS
+
+-- API Webhook Slack
+local slack_webhook = "https://hooks.slack.com/services/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"
+local slack_channel = "#alert"
+local slack_username = "dog"
 
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "444"
 -- Client
 local client_remoteip = ngx.var.remote_addr
+local client_url = ngx.var.host .. '/' .. ngx.var.uri
+local client_message = client_remoteip .. ": " .. client_url
+
 
 -- Functions
 local function isStillBlocking(time_start)
@@ -50,6 +62,18 @@ local function ruleBlock(rule)
     end
 end
 
+local function notiSlack(slack_message){
+    if slack_message ~= ngx.null then
+        local http = require "resty.http"
+        local httpc = http.new()
+        local payload = 'payload={"channel": "'..slack_channel..'", "username": "'..slack_username..'", "text": "'..slack_message..'", "icon_emoji": ":ghost:"}'
+        local res, err = httpc:request_uri(slack_webhook, {
+            method = "POST",
+            body = payload,
+        })
+    end
+}
+
 -- Init Redis Connection
 local resty = require "resty.redis"
 local redis = resty:new()
@@ -69,24 +93,33 @@ else
     redis:select(database)
 end
 
--- Check Whitelist
--- If the remote IP client is existed in Whitelist, the firewall does not block anything
 local is_white_ip_eixsted, err = redis:sismember(redis_whitelist_key, client_remoteip)
 if is_white_ip_eixsted == 1 then
     return
-end
--- Check Blacklist
--- If the remote IP client is exsited in Blakclist, the firewall does block immediately
-local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
-if time_start ~= ngx.null then
-    if isStillBlocking(time_start) then
-        return blockAcion(rule_block)
-    else
-        -- Remove Bad IP
-        ngx.log(ngx.ERR, appname..": removed the bad IP "..client_remoteip)
-        local is_deleted, err = redis:zrem(redis_blacklist_key, client_remoteip)
+else
+    local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
+    if time_start ~= ngx.null then
+        if isStillBlocking(time_start) then
+            blockAcion(rule_block)
+        else
+            -- Remove Bad IP
+            ngx.log(ngx.ERR, appname..": removed the bad IP "..client_remoteip)
+            redis:zrem(redis_blacklist_key, client_remoteip)
+        end
     end
 end
 
+-- Check IP Score For Making An Alarm
+local ip_score, err = redis:hget(redis_score_badip, client_remoteip)
+if ip_score ~= ngx.null then
+    if ip_score >= level_sms then
+        ngx.log(ngx.ERR, appname..": SMS - Slack "..client_remoteip)
+        notiSlack(client_message)
+    else if ip_score >= level_block then
+        ngx.log(ngx.ERR, appname..": Blocking "..client_remoteip)
+        blockAcion(rule_block)
+    end
+    return
+end
 -- Default allow all request
 return
