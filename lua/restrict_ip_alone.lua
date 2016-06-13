@@ -34,7 +34,7 @@ local function isStillBlocking(time_start)
     return true
 end
 
-local function ruleBlock(rule)
+local function blockAcion(rule)
     ngx.log(ngx.ERR, appname..": block the IP "..client_remoteip)
     if rule == "403" then
         return ngx.exit(ngx.HTTP_FORBIDDEN)
