@@ -17,7 +17,7 @@ local level_block = 200
 -- redis IP keys
 local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
-local redis_score_badip = "IP_SCORE"
+local redis_ip_score = "IP_SCORE"
 local redis_sendsms = "IP_IS_SEND_SMS"
 
 -- API SMS
@@ -30,15 +30,17 @@ local slack_username = "dog"
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "444"
+-- Score
+local incr_score = 10
 -- Client
 local client_remoteip = ngx.var.remote_addr
 local client_url = ngx.var.host .. '/' .. ngx.var.uri
 local client_message = client_remoteip .. ": " .. client_url
-
+local client_status = ngx.status
+local time_now = os.time()
 
 -- Functions
 local function isStillBlocking(time_start)
-    local time_now = os.time()
     local time_diff = math.abs(time_start - time_now)
     if time_diff >= block_time then
         return false
@@ -52,7 +54,7 @@ local function ruleBlock(rule)
         return ngx.exit(ngx.HTTP_FORBIDDEN)
     elseif rule == "444" then
         return ngx.exit(ngx.HTTP_CLOSE)
-    else if rule == "404" then
+    elseif rule == "404" then
         return ngx.exit(ngx.HTTP_NOT_FOUND)
     elseif rule == "iptables" then
         -- set rule for block Network layer
@@ -62,8 +64,9 @@ local function ruleBlock(rule)
     end
 end
 
-local function notiSlack(slack_message){
+local function notiSlack(slack_message)
     if slack_message ~= ngx.null then
+        ngx.log(ngx.ERR, appname..": SMS "..client_remoteip)
         local http = require "resty.http"
         local httpc = http.new()
         local payload = 'payload={"channel": "'..slack_channel..'", "username": "'..slack_username..'", "text": "'..slack_message..'", "icon_emoji": ":ghost:"}'
@@ -72,7 +75,7 @@ local function notiSlack(slack_message){
             body = payload,
         })
     end
-}
+end
 
 -- Init Redis Connection
 local resty = require "resty.redis"
@@ -93,33 +96,44 @@ else
     redis:select(database)
 end
 
-local is_white_ip_eixsted, err = redis:sismember(redis_whitelist_key, client_remoteip)
-if is_white_ip_eixsted == 1 then
+local is_white, err = redis:sismember(redis_whitelist_key, client_remoteip)
+if is_white == 1 then
+    ngx.log(ngx.ERR, appname..": WHITE IP "..client_remoteip)
     return
 else
+    -- Check IP Blacklist
     local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
     if time_start ~= ngx.null then
         if isStillBlocking(time_start) then
-            blockAcion(rule_block)
+            ruleBlock(rule_block)
         else
             -- Remove Bad IP
-            ngx.log(ngx.ERR, appname..": removed the bad IP "..client_remoteip)
+            ngx.log(ngx.ERR, appname..": Removed the bad IP "..client_remoteip)
             redis:zrem(redis_blacklist_key, client_remoteip)
+            redis:hdel(redis_ip_score, client_remoteip)
+            return
+        end
+    end
+    
+    -- Check Normal IP
+    -- Making An Alarm
+    if client_status == 403 then
+        redis:hincrby(redis_ip_score, client_remoteip, incr_score)
+        local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
+        ip_score = tonumber(ip_score)
+        if ip_score ~= ngx.null then
+            if ip_score >= level_block then
+                ngx.log(ngx.ERR, appname..": Add To Blacklist IP "..client_remoteip)
+                redis:zadd(redis_blacklist_key, time_now, client_remoteip)
+            elseif ip_score >= level_sms and ip_score <= level_block then
+                notiSlack(client_message)
+            -- else
+            --     ngx.log(ngx.ERR, appname..": IP Score "..client_remoteip.." - "..ip_score)
+            end
         end
     end
 end
 
--- Check IP Score For Making An Alarm
-local ip_score, err = redis:hget(redis_score_badip, client_remoteip)
-if ip_score ~= ngx.null then
-    if ip_score >= level_sms then
-        ngx.log(ngx.ERR, appname..": SMS - Slack "..client_remoteip)
-        notiSlack(client_message)
-    else if ip_score >= level_block then
-        ngx.log(ngx.ERR, appname..": Blocking "..client_remoteip)
-        blockAcion(rule_block)
-    end
-    return
-end
+
 -- Default allow all request
 return
