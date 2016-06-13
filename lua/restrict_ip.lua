@@ -4,7 +4,7 @@ local redis_port = 6379
 local redis_timeout = 200
 local redis_secret = nil
 local appname = "RESTRICT-IP"
-local database = 6
+local database = 15
 
 -- Notification
 local enable_sms = true
@@ -72,8 +72,11 @@ local function notiSlack(slack_message)
         local payload = 'payload={"channel": "'..slack_channel..'", "username": "'..slack_username..'", "text": "'..slack_message..'", "icon_emoji": ":ghost:"}'
         local res, err = httpc:request_uri(slack_webhook, {
             method = "POST",
-            body = payload,
+            body = 'payload={"channel": "#alert", "username": "webhookbot", "text": "This is posted to #alert and comes from a bot named webhookbot.", "icon_emoji": ":ghost:"}',
+            headers = {["Content-Type"] = "application/json"}
         })
+        ngx.log(ngx.ERR, slack_webhook)
+        ngx.log(ngx.ERR, payload)
     end
 end
 
@@ -127,8 +130,6 @@ else
                 redis:zadd(redis_blacklist_key, time_now, client_remoteip)
             elseif ip_score >= level_sms and ip_score <= level_block then
                 notiSlack(client_message)
-            -- else
-            --     ngx.log(ngx.ERR, appname..": IP Score "..client_remoteip.." - "..ip_score)
             end
         end
     end
