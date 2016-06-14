@@ -70,11 +70,13 @@ local function notiSlack(slack_message)
         local http = require "resty.http"
         local httpc = http.new()
         local payload = 'payload={"channel": "'..slack_channel..'", "username": "'..slack_username..'", "text": "'..slack_message..'", "icon_emoji": ":ghost:"}'
-        local res, err = httpc:request_uri(slack_webhook, {
+        local json = require "cjson"
+        result, errors = httpc:request{
+            path = slack_webhook,
             method = "POST",
-            body = 'payload={"channel": "#alert", "username": "webhookbot", "text": "This is posted to #alert and comes from a bot named webhookbot.", "icon_emoji": ":ghost:"}',
-            headers = {["Content-Type"] = "application/json"}
-        })
+            body = json.encode(payload),
+        }
+        ngx.log(ngx.ERR, result)
         ngx.log(ngx.ERR, slack_webhook)
         ngx.log(ngx.ERR, payload)
     end
