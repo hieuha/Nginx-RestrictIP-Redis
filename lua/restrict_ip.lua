@@ -94,29 +94,30 @@ else
     redis:select(database)
 end
 
-local is_white, err = redis:sismember(redis_whitelist_key, client_remoteip)
-if is_white == 1 then
-    ngx.log(ngx.ERR, appname..": WHITE IP "..client_remoteip)
-    redis:lpush(redis_logs, clientInfo())
-    return
-else
-    -- Check IP Blacklist
-    local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
-    if time_start ~= ngx.null then
-        if isStillBlocking(time_start) then
-            ruleBlock(rule_block)
-        else
-            -- Remove Bad IP
-            ngx.log(ngx.ERR, appname..": Removed the bad IP "..client_remoteip)
-            redis:zrem(redis_blacklist_key, client_remoteip)
-            redis:hdel(redis_ip_score, client_remoteip)
-            return
+if client_status == 403 then
+    local is_white, err = redis:sismember(redis_whitelist_key, client_remoteip)
+    if is_white == 1 then
+        ngx.log(ngx.ERR, appname..": WHITE IP "..client_remoteip)
+        redis:lpush(redis_logs, clientInfo())
+        return
+    else
+        -- Check IP Blacklist
+        local time_start, err = redis:zscore(redis_blacklist_key, client_remoteip)
+        if time_start ~= ngx.null then
+            if isStillBlocking(time_start) then
+                ruleBlock(rule_block)
+            else
+                -- Remove Bad IP
+                ngx.log(ngx.ERR, appname..": Removed the bad IP "..client_remoteip)
+                redis:zrem(redis_blacklist_key, client_remoteip)
+                redis:hdel(redis_ip_score, client_remoteip)
+                return
+            end
         end
-    end
-    
-    -- Check Normal IP
-    -- Making An Alarm
-    if client_status == 403 then
+        
+        -- Check Normal IP
+        -- Making An Alarm
+        redis:lpush(redis_logs, clientInfo())
         redis:hincrby(redis_ip_score, client_remoteip, incr_score)
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
@@ -128,7 +129,7 @@ else
                 redis:lpush(redis_sms, client_message)
             end
         end
-    end        
+    end
 end
 
 -- Default allow all request
