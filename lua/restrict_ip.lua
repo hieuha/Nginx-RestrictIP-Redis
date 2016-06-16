@@ -116,9 +116,8 @@ else
     -- Check Normal IP
     -- Making An Alarm
     if client_status == 403 then
-        redis:zadd(redis_logs, time_now, clientInfo())
+        redis:lpush(redis_logs, clientInfo())
         redis:hincrby(redis_ip_score, client_remoteip, incr_score)
-        ngx.print(client_cookie)
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
         if ip_score ~= ngx.null then
