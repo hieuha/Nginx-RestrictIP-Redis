@@ -15,7 +15,6 @@ local level_block = 200
 local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
 local redis_ip_score = "IP_SCORE"
-local redis_sendsms = "IP_IS_SEND_SMS"
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "444"
