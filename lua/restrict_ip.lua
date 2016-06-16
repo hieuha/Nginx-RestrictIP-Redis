@@ -105,7 +105,7 @@ else
             if ip_score >= level_block then
                 ngx.log(ngx.ERR, appname..": Add To Blacklist IP "..client_remoteip)
                 redis:zadd(redis_blacklist_key, time_now, client_remoteip)
-            elseif ip_score == level_sms then
+            elseif ip_score == level_sms or ip_score == level_sms + 30 then
                 redis:lpush(redis_sms, client_message)
             end
         end
