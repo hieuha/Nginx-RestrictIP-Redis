@@ -16,7 +16,6 @@ local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
 local redis_ip_score = "IP_SCORE"
 local redis_sendsms = "IP_IS_SEND_SMS"
-
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "444"
@@ -58,14 +57,14 @@ end
 local function notiSlack(slack_message)
     if slack_message ~= ngx.null then
         ngx.log(ngx.ERR, appname..": Slack "..client_remoteip)
-        os.execute("/opt/nginx/notification/slack.sh");
+        os.execute("/opt/nginx/conf/notification/slack.sh");
     end
 end
 
 local function notiSMS(message)
     if message ~= ngx.null then
         ngx.log(ngx.ERR, appname..": SMS "..client_remoteip)
-        os.execute("/opt/nginx/notification/sms.sh");
+        os.execute("/opt/nginx/conf/notification/sms.sh");
     end
 end
 
@@ -114,13 +113,14 @@ else
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
         if ip_score ~= ngx.null then
+            ngx.log(ngx.ERR, appname..": IP "..client_remoteip.." - "..ip_score)
             if ip_score >= level_block then
                 ngx.log(ngx.ERR, appname..": Add To Blacklist IP "..client_remoteip)
                 redis:zadd(redis_blacklist_key, time_now, client_remoteip)
             elseif ip_score >= level_sms and ip_score <= level_block then
-                if enable_sms then
+                if ip_score == level_sms then
                     notiSMS(client_message)
-                else 
+                else
                     notiSlack(client_message)
                 end
             end
