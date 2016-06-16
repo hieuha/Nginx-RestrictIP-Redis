@@ -18,7 +18,7 @@ local redis_ip_score = "IP_SCORE"
 local redis_sms = "IP_SMS"
 
 -- block time
-local block_time = 600000 -- 10 minutes, 600000 milliseconds 
+local block_time = 600
 local rule_block = "444"
 
 -- Score
@@ -34,6 +34,7 @@ local time_now = os.time()
 -- Functions
 local function isStillBlocking(time_start)
     local time_diff = math.abs(time_start - time_now)
+    ngx.log(ngx.ERR, appname..time_diff)
     if time_diff >= block_time then
         return false
     end
