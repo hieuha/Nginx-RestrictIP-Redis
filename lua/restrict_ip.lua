@@ -25,8 +25,9 @@ local rule_block = "444"
 local incr_score = 10
 -- Client
 local client_remoteip = ngx.var.remote_addr
-local client_url = ngx.var.host .. '/' .. ngx.var.uri
-local client_message = client_remoteip .. ": " .. client_url
+local client_phone = ngx.var.mobile_admin
+local client_bad_url = ngx.var.badurl
+local client_message = client_phone .."|".. client_remoteip .. ": " .. client_bad_url
 local client_status = ngx.status
 local time_now = os.time()
 
@@ -105,7 +106,7 @@ else
                 ngx.log(ngx.ERR, appname..": Add To Blacklist IP "..client_remoteip)
                 redis:zadd(redis_blacklist_key, time_now, client_remoteip)
             elseif ip_score == level_sms then
-                redis:lpush(IP_SMS, client_message)
+                redis:lpush(redis_sms, client_message)
             end
         end
     end
