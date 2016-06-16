@@ -97,6 +97,7 @@ end
 local is_white, err = redis:sismember(redis_whitelist_key, client_remoteip)
 if is_white == 1 then
     ngx.log(ngx.ERR, appname..": WHITE IP "..client_remoteip)
+    redis:lpush(redis_logs, clientInfo())
     return
 else
     -- Check IP Blacklist
@@ -116,7 +117,6 @@ else
     -- Check Normal IP
     -- Making An Alarm
     if client_status == 403 then
-        redis:lpush(redis_logs, clientInfo())
         redis:hincrby(redis_ip_score, client_remoteip, incr_score)
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
@@ -130,7 +130,6 @@ else
         end
     end        
 end
-
 
 -- Default allow all request
 return
