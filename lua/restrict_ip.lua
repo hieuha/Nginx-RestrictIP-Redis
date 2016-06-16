@@ -8,9 +8,6 @@ local database = 15
 
 -- Notification
 local enable_sms = true
-local enable_email = true
-local daywork = {2, 3, 4, 5, 6, 7}
-local daytime = {}
 local level_sms = 100
 local level_block = 200
 
@@ -20,16 +17,10 @@ local redis_blacklist_key = "IP_BLACKLIST"
 local redis_ip_score = "IP_SCORE"
 local redis_sendsms = "IP_IS_SEND_SMS"
 
--- API SMS
-
--- API Webhook Slack
-local slack_webhook = "https://hooks.slack.com/services/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"
-local slack_channel = "#alert"
-local slack_username = "dog"
-
 -- block time
 local block_time = 600000 -- 10 minutes, 600000 milliseconds 
 local rule_block = "444"
+
 -- Score
 local incr_score = 10
 -- Client
@@ -66,19 +57,15 @@ end
 
 local function notiSlack(slack_message)
     if slack_message ~= ngx.null then
+        ngx.log(ngx.ERR, appname..": Slack "..client_remoteip)
+        os.execute("/opt/nginx/notification/slack.sh");
+    end
+end
+
+local function notiSMS(message)
+    if message ~= ngx.null then
         ngx.log(ngx.ERR, appname..": SMS "..client_remoteip)
-        local http = require "resty.http"
-        local httpc = http.new()
-        local payload = 'payload={"channel": "'..slack_channel..'", "username": "'..slack_username..'", "text": "'..slack_message..'", "icon_emoji": ":ghost:"}'
-        local json = require "cjson"
-        result, errors = httpc:request{
-            path = slack_webhook,
-            method = "POST",
-            body = json.encode(payload),
-        }
-        ngx.log(ngx.ERR, result)
-        ngx.log(ngx.ERR, slack_webhook)
-        ngx.log(ngx.ERR, payload)
+        os.execute("/opt/nginx/notification/sms.sh");
     end
 end
 
@@ -131,7 +118,11 @@ else
                 ngx.log(ngx.ERR, appname..": Add To Blacklist IP "..client_remoteip)
                 redis:zadd(redis_blacklist_key, time_now, client_remoteip)
             elseif ip_score >= level_sms and ip_score <= level_block then
-                notiSlack(client_message)
+                if enable_sms then
+                    notiSMS(client_message)
+                else 
+                    notiSlack(client_message)
+                end
             end
         end
     end
