@@ -9,7 +9,7 @@ function my_os() {
 }
 
 ########################################################
-SOURCES_FOLDER="/home/vagrant/Project/Nginx-RestrictIP-Redis/sources"
+SOURCES_FOLDER="/opt/sources"
 
 MY_OS=$(my_os)
 if [ -d "$SOURCES_FOLDER" -a ! -h "SOURCES_FOLDER" ]; then
@@ -83,4 +83,4 @@ make install
 
 ########################################################
 echo "Copying Restrict IP in Lua"
-cp -vR "$SOURCES_FOLDER/restrictip-lua/lua" /opt/nginx/etc/conf/.
+cp -vR "$SOURCES_FOLDER/restrictip-lua/lua" /opt/nginx/conf.
