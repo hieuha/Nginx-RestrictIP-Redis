@@ -71,7 +71,7 @@ local function clientInfo()
     user["created_timestamp"] = time_now
     user["cookie"] = client_cookie
     user["url_string_encode"] = client_bad_url
-    local user_json = JSON:encode(user) 
+    local user_json = JSON:encode(user)
     return user_json
 end
 
