@@ -1,1 +1,0 @@
-curl -s -X POST --data-urlencode 'payload={"channel": "#alert", "username": "Bulldog", "text": "", "icon_emoji": ":dog:"}' https://hooks.slack.com/services/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 > /dev/null 2>&1
