@@ -101,7 +101,6 @@ else
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
         if ip_score ~= ngx.null then
-            ngx.log(ngx.ERR, appname..": IP "..client_remoteip.." - "..ip_score)
             if ip_score >= level_block then
                 ngx.log(ngx.ERR, appname..": Add To Blacklist IP "..client_remoteip)
                 redis:zadd(redis_blacklist_key, time_now, client_remoteip)
