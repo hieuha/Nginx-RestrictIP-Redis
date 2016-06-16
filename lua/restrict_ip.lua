@@ -5,6 +5,7 @@ local redis_timeout = 200
 local redis_secret = nil
 local appname = "RESTRICT-IP"
 local database = 15
+JSON = (loadfile "/opt/nginx/conf/lua/resty/JSON.lua")()
 
 -- Notification
 local enable_sms = true
@@ -16,6 +17,7 @@ local redis_whitelist_key = "IP_WHITELIST"
 local redis_blacklist_key = "IP_BLACKLIST"
 local redis_ip_score = "IP_SCORE"
 local redis_sms = "IP_SMS"
+local redis_logs = "LIST_OF_USERS"
 
 -- block time
 local block_time = 600
@@ -30,11 +32,15 @@ local client_bad_url = ngx.var.badurl
 local client_message = client_phone .."|".. client_remoteip .. ": " .. client_bad_url
 local client_status = ngx.status
 local time_now = os.time()
+local client_cookie = http_cookie
+local client_user_agent = ngx.var.http_user_agent
+
+-- 
+
 
 -- Functions
 local function isStillBlocking(time_start)
     local time_diff = math.abs(time_start - time_now)
-    ngx.log(ngx.ERR, appname..time_diff)
     if time_diff >= block_time then
         return false
     end
@@ -55,6 +61,18 @@ local function ruleBlock(rule)
     else
         return ngx.exit(ngx.HTTP_FORBIDDEN)
     end
+end
+
+
+local function clientInfo()
+    local user = {}
+    user["user_agent"] = client_user_agent
+    user["ip"] = client_remoteip
+    user["created_timestamp"] = time_now
+    user["cookie"] = client_cookie
+    user["url_string_encode"] = client_bad_url
+    local user_json = JSON:encode(user) 
+    return user_json
 end
 
 -- Init Redis Connection
@@ -98,6 +116,7 @@ else
     -- Check Normal IP
     -- Making An Alarm
     if client_status == 403 then
+        redis:zadd(redis_logs, time_now, clientInfo())
         redis:hincrby(redis_ip_score, client_remoteip, incr_score)
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
@@ -109,7 +128,7 @@ else
                 redis:lpush(redis_sms, client_message)
             end
         end
-    end
+    end        
 end
 
 
