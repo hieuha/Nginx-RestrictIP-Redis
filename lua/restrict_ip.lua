@@ -32,7 +32,7 @@ local client_bad_url = ngx.var.badurl
 local client_message = client_phone .."|".. client_remoteip .. ": " .. client_bad_url
 local client_status = ngx.status
 local time_now = os.time()
-local client_cookie = http_cookie
+local client_cookie = ngx.var.lua_cookie
 local client_user_agent = ngx.var.http_user_agent
 
 -- 
@@ -118,6 +118,7 @@ else
     if client_status == 403 then
         redis:zadd(redis_logs, time_now, clientInfo())
         redis:hincrby(redis_ip_score, client_remoteip, incr_score)
+        ngx.print(client_cookie)
         local ip_score, err = redis:hget(redis_ip_score, client_remoteip)
         ip_score = tonumber(ip_score)
         if ip_score ~= ngx.null then
